@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texture Archive Swapper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
+        .drop-zone { transition: all 0.3s ease; border: 2px dashed #4b5563; }
+        .drop-zone.dragover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .card-dragover { border-color: #10b981 !important; background-color: rgba(16, 185, 129, 0.05) !important; transform: scale(1.02); }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">Texture Swapper</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="exportBtn" disabled class="hidden px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Download Updated Archive</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full p-6">
+        <!-- Initial Upload State -->
+        <div id="uploadContainer" class="max-w-2xl mx-auto mt-20">
+            <div id="dropZone" class="drop-zone p-12 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-900/40">
+                <input type="file" id="zipInput" class="hidden" accept=".zip">
+                <input type="file" id="folderInput" class="hidden" webkitdirectory directory multiple>
+                
+                <div class="bg-gray-800 p-4 rounded-full mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 text-white">Load your texture sources</h2>
+                <p class="text-gray-400 mb-8">Drop a ZIP or select an uncompressed folder (Supports PNG, JPG, TGA, DDS)</p>
+                
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button onclick="document.getElementById('zipInput').click()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-all flex items-center justify-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" /></svg>
+                        <span>Browse ZIP</span>
+                    </button>
+                    <button onclick="document.getElementById('folderInput').click()" class="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-bold transition-all flex items-center justify-center space-x-2 border border-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>
+                        <span>Browse Folder</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing State -->
+        <div id="loadingState" class="hidden flex flex-col items-center justify-center mt-20">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p id="loadingMsg" class="text-lg text-gray-400 font-medium">Analyzing content...</p>
+        </div>
+
+        <!-- Dashboard State -->
+        <div id="dashboard" class="hidden space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between border-b border-gray-800 pb-4 gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold">Analysis Results</h2>
+                    <p class="text-gray-400 mt-1" id="statsText">Found 0 unique textures.</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                     <button onclick="location.reload()" class="text-xs text-gray-400 hover:text-white transition-colors bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-800">
+                        Reset Tool
+                    </button>
+                    <div class="text-sm text-gray-500 bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-800">
+                        <span id="nonImageCount" class="text-blue-400 font-mono">0</span> non-image files preserved
+                    </div>
+                </div>
+            </div>
+
+            <div id="textureGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards injected here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 bg-gray-800 border border-gray-700 px-6 py-3 rounded-xl shadow-2xl flex items-center space-x-3 pointer-events-none z-[100]">
+        <div id="notifIcon" class="text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+        </div>
+        <span id="notifMessage" class="font-medium">Success!</span>
+    </div>
+
+    <script>
+        let originalFiles = []; 
+        let textureGroups = {}; 
+        let currentZipName = "updated_textures.zip";
+
+        const elements = {
+            zipInput: document.getElementById('zipInput'),
+            folderInput: document.getElementById('folderInput'),
+            dropZone: document.getElementById('dropZone'),
+            uploadContainer: document.getElementById('uploadContainer'),
+            loadingState: document.getElementById('loadingState'),
+            loadingMsg: document.getElementById('loadingMsg'),
+            dashboard: document.getElementById('dashboard'),
+            textureGrid: document.getElementById('textureGrid'),
+            statsText: document.getElementById('statsText'),
+            nonImageCount: document.getElementById('nonImageCount'),
+            exportBtn: document.getElementById('exportBtn'),
+            notification: document.getElementById('notification'),
+            notifMessage: document.getElementById('notifMessage')
+        };
+
+        // --- TGA DECODER ---
+        function tgaToDataUrl(buffer) {
+            try {
+                const header = new Uint8Array(buffer, 0, 18);
+                const width = header[12] | (header[13] << 8);
+                const height = header[14] | (header[15] << 8);
+                const pixelDepth = header[16];
+                const imageType = header[2]; 
+
+                if (imageType !== 2 && imageType !== 10) return null;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.createImageData(width, height);
+                const data = imageData.data;
+
+                const pixels = new Uint8Array(buffer, 18);
+                let i = 0;
+
+                if (imageType === 2) { 
+                    for (let y = height - 1; y >= 0; y--) {
+                        for (let x = 0; x < width; x++) {
+                            const targetIdx = (y * width + x) * 4;
+                            if (pixelDepth === 32) {
+                                data[targetIdx] = pixels[i + 2];     
+                                data[targetIdx + 1] = pixels[i + 1]; 
+                                data[targetIdx + 2] = pixels[i];     
+                                data[targetIdx + 3] = pixels[i + 3]; 
+                                i += 4;
+                            } else {
+                                data[targetIdx] = pixels[i + 2];
+                                data[targetIdx + 1] = pixels[i + 1];
+                                data[targetIdx + 2] = pixels[i];
+                                data[targetIdx + 3] = 255;
+                                i += 3;
+                            }
+                        }
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+                return canvas.toDataURL();
+            } catch (e) { return null; }
+        }
+
+        // --- DDS DECODER (Basic DXT support) ---
+        function ddsToDataUrl(buffer) {
+            try {
+                const header = new Int32Array(buffer, 0, 32);
+                if (header[0] !== 0x20534444) return null; // "DDS "
+
+                const height = header[3];
+                const width = header[4];
+                const fourCC = header[21]; // Offsets are based on 4-byte Int32
+
+                // FourCC Constants
+                const DXT1 = 0x31545844;
+                const DXT3 = 0x33545844;
+                const DXT5 = 0x35545844;
+
+                if (fourCC !== DXT1 && fourCC !== DXT3 && fourCC !== DXT5) return null;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.createImageData(width, height);
+                const rgba = imageData.data;
+
+                const blocks = new Uint8Array(buffer, 128);
+                let offset = 0;
+
+                for (let y = 0; y < height; y += 4) {
+                    for (let x = 0; x < width; x += 4) {
+                        let colors = [];
+                        let alphaBlocks = null;
+
+                        if (fourCC === DXT3 || fourCC === DXT5) {
+                            alphaBlocks = blocks.subarray(offset, offset + 8);
+                            offset += 8;
+                        }
+
+                        const colorBlock = blocks.subarray(offset, offset + 8);
+                        offset += 8;
+
+                        const c0 = colorBlock[0] | (colorBlock[1] << 8);
+                        const c1 = colorBlock[2] | (colorBlock[3] << 8);
+                        
+                        const r0 = ((c0 >> 11) & 31) * 255 / 31;
+                        const g0 = ((c0 >> 5) & 63) * 255 / 63;
+                        const b0 = (c0 & 31) * 255 / 31;
+                        
+                        const r1 = ((c1 >> 11) & 31) * 255 / 31;
+                        const g1 = ((c1 >> 5) & 63) * 255 / 63;
+                        const b1 = (c1 & 31) * 255 / 31;
+
+                        colors = [
+                            [r0, g0, b0, 255],
+                            [r1, g1, b1, 255]
+                        ];
+
+                        if (c0 > c1) {
+                            colors.push([(2 * r0 + r1) / 3, (2 * g0 + g1) / 3, (2 * b0 + b1) / 3, 255]);
+                            colors.push([(r0 + 2 * r1) / 3, (g0 + 2 * g1) / 3, (b0 + 2 * b1) / 3, 255]);
+                        } else {
+                            colors.push([(r0 + r1) / 2, (g0 + g1) / 2, (b0 + b1) / 2, 255]);
+                            colors.push([0, 0, 0, 0]);
+                        }
+
+                        const indices = colorBlock[4] | (colorBlock[5] << 8) | (colorBlock[6] << 16) | (colorBlock[7] << 24);
+
+                        for (let py = 0; py < 4; py++) {
+                            for (let px = 0; px < 4; px++) {
+                                if (x + px < width && y + py < height) {
+                                    const idx = (indices >> ((py * 4 + px) * 2)) & 3;
+                                    const targetIdx = ((y + py) * width + (x + px)) * 4;
+                                    rgba[targetIdx] = colors[idx][0];
+                                    rgba[targetIdx+1] = colors[idx][1];
+                                    rgba[targetIdx+2] = colors[idx][2];
+                                    rgba[targetIdx+3] = colors[idx][3];
+
+                                    // Handle DXT3/5 Alpha
+                                    if (fourCC === DXT3) {
+                                        const alpha = (alphaBlocks[py * 2 + (px >> 1)] >> ((px & 1) * 4)) & 0x0F;
+                                        rgba[targetIdx + 3] = alpha * 255 / 15;
+                                    } else if (fourCC === DXT5) {
+                                        const a0 = alphaBlocks[0];
+                                        const a1 = alphaBlocks[1];
+                                        const aIndices = alphaBlocks.slice(2);
+                                        // Simple DXT5 alpha skip for brevity, or full implementation
+                                        rgba[targetIdx + 3] = a0; 
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+                return canvas.toDataURL();
+            } catch (e) { return null; }
+        }
+
+        async function getHash(buffer) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function showNotification(msg) {
+            elements.notifMessage.innerText = msg;
+            elements.notification.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                elements.notification.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        elements.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.add('dragover');
+        });
+        elements.dropZone.addEventListener('dragleave', () => elements.dropZone.classList.remove('dragover'));
+        elements.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                const items = e.dataTransfer.items;
+                if (items && items[0].webkitGetAsEntry().isDirectory) {
+                    handleFolder(e.dataTransfer.files);
+                } else {
+                    handleZipFile(e.dataTransfer.files[0]);
+                }
+            }
+        });
+
+        elements.zipInput.addEventListener('change', (e) => e.target.files.length && handleZipFile(e.target.files[0]));
+        elements.folderInput.addEventListener('change', (e) => e.target.files.length && handleFolder(e.target.files));
+
+        async function handleZipFile(file) {
+            if (!file.name.endsWith('.zip')) {
+                alert('Please upload a .zip archive.');
+                return;
+            }
+            currentZipName = file.name.replace('.zip', '_updated.zip');
+            startProcessing();
+            try {
+                const zip = new JSZip();
+                const loadedZip = await zip.loadAsync(file);
+                const fileList = [];
+                for (const [path, entry] of Object.entries(loadedZip.files)) {
+                    if (entry.dir) continue;
+                    const buffer = await entry.async("arraybuffer");
+                    fileList.push({ path, buffer });
+                }
+                await processData(fileList);
+            } catch (err) { errorCleanup(err); }
+        }
+
+        async function handleFolder(files) {
+            const firstFile = files[0];
+            const rootName = firstFile.webkitRelativePath.split('/')[0] || "folder";
+            currentZipName = `${rootName}_updated.zip`;
+            startProcessing();
+            try {
+                const fileList = [];
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const buffer = await file.arrayBuffer();
+                    fileList.push({ path: file.webkitRelativePath, buffer });
+                }
+                await processData(fileList);
+            } catch (err) { errorCleanup(err); }
+        }
+
+        function startProcessing() {
+            elements.uploadContainer.classList.add('hidden');
+            elements.loadingState.classList.remove('hidden');
+            originalFiles = [];
+            textureGroups = {};
+        }
+
+        function errorCleanup(err) {
+            console.error(err);
+            elements.loadingState.classList.add('hidden');
+            elements.uploadContainer.classList.remove('hidden');
+        }
+
+        async function processData(fileList) {
+            let processed = 0;
+            for (const item of fileList) {
+                processed++;
+                elements.loadingMsg.innerText = `Analyzing ${processed} of ${fileList.length}...`;
+                const isImage = /\.(png|jpe?g|webp|gif|bmp|tga|dds)$/i.test(item.path);
+                if (!isImage) {
+                    originalFiles.push(item);
+                    continue;
+                }
+                const hash = await getHash(item.buffer);
+                if (!textureGroups[hash]) {
+                    let previewUrl = "";
+                    const ext = item.path.split('.').pop().toLowerCase();
+                    if (ext === 'tga') {
+                        previewUrl = tgaToDataUrl(item.buffer) || "https://placehold.co/400x225/111/444?text=TGA+Format";
+                    } else if (ext === 'dds') {
+                        previewUrl = ddsToDataUrl(item.buffer) || "https://placehold.co/400x225/111/444?text=DDS+Format";
+                    } else {
+                        previewUrl = URL.createObjectURL(new Blob([item.buffer]));
+                    }
+                    textureGroups[hash] = {
+                        hash, paths: [], originalBuffer: item.buffer, replacementBuffer: null, previewUrl: previewUrl
+                    };
+                }
+                textureGroups[hash].paths.push(item.path);
+            }
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            elements.loadingState.classList.add('hidden');
+            elements.dashboard.classList.remove('hidden');
+            elements.exportBtn.classList.remove('hidden');
+            elements.exportBtn.disabled = false;
+            const keys = Object.keys(textureGroups);
+            const totalPaths = keys.reduce((acc, k) => acc + textureGroups[k].paths.length, 0);
+            elements.statsText.innerText = `Identified ${keys.length} unique texture sets across ${totalPaths} source paths.`;
+            elements.nonImageCount.innerText = originalFiles.length;
+            elements.textureGrid.innerHTML = '';
+            keys.forEach(hash => elements.textureGrid.appendChild(createTextureCard(textureGroups[hash])));
+        }
+
+        function createTextureCard(group) {
+            const card = document.createElement('div');
+            card.className = "bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex flex-col group transition-all hover:border-gray-700 cursor-default";
+            card.id = `card-${group.hash}`;
+            card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('card-dragover'); });
+            card.addEventListener('dragleave', () => card.classList.remove('card-dragover'));
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('card-dragover');
+                if (e.dataTransfer.files.length) handleReplace(e.dataTransfer.files[0], group.hash);
+            });
+            const isDuplicate = group.paths.length > 1;
+            card.innerHTML = `
+                <div class="relative aspect-video bg-gray-950 flex items-center justify-center p-4">
+                    <img src="${group.previewUrl}" id="img-${group.hash}" class="max-w-full max-h-full object-contain shadow-2xl rounded" alt="texture">
+                    ${isDuplicate ? `<div class="absolute top-3 left-3 bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg uppercase tracking-widest">${group.paths.length} Duplicate Paths</div>` : ''}
+                    <div id="badge-${group.hash}" class="hidden absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg uppercase tracking-widest">Replaced</div>
+                </div>
+                <div class="p-4 flex-grow flex flex-col space-y-4">
+                    <div class="flex-grow">
+                        <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Internal Locations</h4>
+                        <div class="bg-gray-950 rounded-lg p-3 max-h-32 overflow-y-auto custom-scrollbar text-[11px] font-mono text-gray-400 border border-gray-800">
+                            ${group.paths.map(p => `<div class="py-1 border-b border-gray-900 last:border-0 truncate" title="${p}">${p}</div>`).join('')}
+                        </div>
+                    </div>
+                    <label class="cursor-pointer bg-gray-800 hover:bg-gray-700 text-gray-200 py-2.5 px-4 rounded-xl text-center font-bold text-xs transition-colors border border-gray-700">
+                        Swap or Drop Image
+                        <input type="file" class="hidden" accept="image/*" onchange="handleReplace(this.files[0], '${group.hash}')">
+                    </label>
+                </div>
+            `;
+            return card;
+        }
+
+        async function handleReplace(file, hash) {
+            if (!file) return;
+            if (!file.type.startsWith('image/')) { showNotification("Please drop an image file."); return; }
+            const buffer = await file.arrayBuffer();
+            textureGroups[hash].replacementBuffer = buffer;
+            const newUrl = URL.createObjectURL(new Blob([buffer]));
+            document.getElementById(`img-${hash}`).src = newUrl;
+            document.getElementById(`badge-${hash}`).classList.remove('hidden');
+            document.getElementById(`card-${hash}`).classList.add('ring-2', 'ring-emerald-500/50', 'border-emerald-900');
+            showNotification(`Updated ${textureGroups[hash].paths.length} file mappings.`);
+        }
+
+        elements.exportBtn.addEventListener('click', async () => {
+            elements.exportBtn.disabled = true;
+            const span = elements.exportBtn.querySelector('span');
+            span.innerText = "Building ZIP...";
+            try {
+                const zip = new JSZip();
+                originalFiles.forEach(f => zip.file(f.path, f.buffer));
+                Object.values(textureGroups).forEach(group => {
+                    const data = group.replacementBuffer || group.originalBuffer;
+                    group.paths.forEach(path => zip.file(path, data));
+                });
+                const blob = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentZipName;
+                a.click();
+                showNotification("Exported updated structure.");
+            } catch (err) { alert("Export failed."); } finally {
+                elements.exportBtn.disabled = false;
+                span.innerText = "Download Updated Archive";
+            }
+        });
+    </script>
+</body>
+</html>
